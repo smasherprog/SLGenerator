@@ -2,7 +2,7 @@
 using System.Linq;
 using EnvDTE;
 
-namespace MyCoreBuilder
+namespace SLGenerator
 {
     public class Log
     {

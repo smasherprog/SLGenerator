@@ -10,7 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 //Copied from https://keestalkstech.com/2016/05/how-to-add-dynamic-compilation-to-your-projects/
-namespace MyCodeGenerator
+namespace SLGenerator
 {
 
     public class RoslynCompiler : ICompiler
@@ -24,7 +24,7 @@ namespace MyCodeGenerator
                     assemblyLocations,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
              );
-
+            Debug.WriteLine("Got here  IT!123123");
             using (var ms = new MemoryStream())
             {
                 var compilationResult = compilation.Emit(ms);

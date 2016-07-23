@@ -6,7 +6,7 @@ using System.Linq;
 using System.Diagnostics;
 
 //Copied from https://keestalkstech.com/2016/05/how-to-add-dynamic-compilation-to-your-projects/
-namespace MyCodeGenerator
+namespace SLGenerator
 {
     public class CachedCompiler : ICompiler
     {
@@ -24,11 +24,9 @@ namespace MyCodeGenerator
         }
         public Assembly Compile(SyntaxTree code, params MetadataReference[] assemblyLocations)
         {
-            Debug.WriteLine("Got here  IT!22222");
             string key = GetCacheKey(code.ToString(), assemblyLocations.Select(a => a.Properties.ToString()).ToArray());
             return cache.GetOrAdd(key, (k) =>
             {
-                Debug.WriteLine("Got here  IT!1111");
                 return compiler.Compile(code, assemblyLocations);
             });
         }
