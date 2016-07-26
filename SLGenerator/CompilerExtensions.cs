@@ -1,15 +1,53 @@
 ﻿using Microsoft.CodeAnalysis;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-//Copied from https://keestalkstech.com/2016/05/how-to-add-dynamic-compilation-to-your-projects/
+
 namespace SLGenerator
 {
     public interface ISLGeneratorScript
     {
-        /// Runs the script.
-        void Run();
+        bool IncludeMainProject();
+        IEnumerable<Project> IncludeProjects(IEnumerable<Project> projects_in_solution);
+        bool IncludeDocument(Document doc, SyntaxNode root, SemanticModel sem);
+        void Run(Document doc, SyntaxNode root, SemanticModel sem);
+    }
+    public class SLGeneratorScriptProxy : ISLGeneratorScript
+    {
+        object _object;
+        MethodInfo _IncludeMainProject;
+        MethodInfo _IncludeProjects;
+        MethodInfo _Run;
+        MethodInfo _IncludeDocument;
+
+        public SLGeneratorScriptProxy(object obj)
+        {
+            _object = obj;
+            _IncludeMainProject = _object.GetType().GetMethod("IncludeMainProject");
+            _IncludeProjects = _object.GetType().GetMethod("IncludeProjects");
+            _Run = _object.GetType().GetMethod("Run");
+            _IncludeDocument = _object.GetType().GetMethod("IncludeDocument");
+        }
+
+        public bool IncludeMainProject()
+        {
+            return (bool)_IncludeMainProject.Invoke(_object, null);
+        }
+        public IEnumerable<Project> IncludeProjects(IEnumerable<Project> projects_in_solution)
+        {
+            return (IEnumerable<Project>)_IncludeProjects.Invoke(_object, new object[] { projects_in_solution });
+        }
+        public void Run(Document doc, SyntaxNode root, SemanticModel sem)
+        {
+            _Run.Invoke(_object, new object[] { doc, root, sem });
+        }
+
+        public bool IncludeDocument(Document doc, SyntaxNode root, SemanticModel sem)
+        {
+           return (bool) _IncludeDocument.Invoke(_object, new object[] { doc, root, sem });
+        }
     }
 
     public interface ICompiler
@@ -18,30 +56,23 @@ namespace SLGenerator
         Assembly Compile(string code, params MetadataReference[] assemblyLocations);
         Assembly Compile(SyntaxTree code, params MetadataReference[] assemblyLocations);
     }
-    public class CompilerInstructions
-    {
-        public CompilerInstructions()
-        {
-            ClassName = null;
-            Code = null;
-
-        }
-        public string ClassName { get; set; }
-        public SyntaxTree Code { get; set; }
-        public MetadataReference[] Assemblies { get; set; }
-    }
-
     public static class CompilerExtensions
     {
-        public static void CompileAndRun(this ICompiler compiler, CompilerInstructions instructions, params object[] constructorParameters)
+        public static ISLGeneratorScript Compile(this ICompiler compiler, string code, MetadataReference[] Assemblies, params object[] constructorParameters)
         {
-            var assembly = compiler.Compile(instructions.Code, instructions.Assemblies);
-            var asstype = assembly.DefinedTypes.FirstOrDefault(a => a.Name == instructions.ClassName);
+            var assembly = compiler.Compile(code, Assemblies);
+            var asstype = assembly.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorScript"));
             var type = assembly.GetType(asstype.FullName);
-            var obj= Activator.CreateInstance(type, constructorParameters);
-
-            var objrun = type.GetMethod("Run");
-            objrun.Invoke(obj, null);
+            return (ISLGeneratorScript)Activator.CreateInstance(type, constructorParameters);
         }
+        public static ISLGeneratorScript Compile(this ICompiler compiler, SyntaxTree code, MetadataReference[] Assemblies, params object[] constructorParameters)
+        {
+            var assembly = compiler.Compile(code, Assemblies);
+            var asstype = assembly.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorScript"));
+            var type = assembly.GetType(asstype.FullName);
+            return (ISLGeneratorScript)Activator.CreateInstance(type, constructorParameters);
+        }
+
     }
+
 }

@@ -17,14 +17,14 @@ namespace SLGenerator
     {
         public Assembly Compile(SyntaxTree code, params MetadataReference[] assemblyLocations)
         {
-            Debug.WriteLine("Got here  IT!");
+  
             var compilation = CSharpCompilation.Create(
                     "_" + Guid.NewGuid().ToString("D"),
                     new SyntaxTree[] { code },
                     assemblyLocations,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
              );
-            Debug.WriteLine("Got here  IT!123123");
+        
             using (var ms = new MemoryStream())
             {
                 var compilationResult = compilation.Emit(ms);
