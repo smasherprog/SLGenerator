@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using EnvDTE80;
+using EnvDTE100;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.LanguageServices;
@@ -10,6 +10,7 @@ using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
+using EnvDTE80;
 
 namespace SLGenerator
 {
@@ -25,7 +26,7 @@ namespace SLGenerator
         public Builder(VisualStudioWorkspace worksp, DTE2 dte, IVsStatusbar stab)
         {
             _DTE2 = dte;
-
+   
             _VisualStudioWorkspace = worksp;
  
             _VisualStudioWorkspace.WorkspaceChanged += _VisualStudioWorkspace_WorkspaceChanged;
@@ -37,7 +38,9 @@ namespace SLGenerator
 
             var startuprojectlist = (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a));
             if (startuprojectlist == null) return;
-            var mainproject = _VisualStudioWorkspace?.CurrentSolution?.Projects?.FirstOrDefault(a => startuprojectlist.Any(b => a.FilePath.ToLower().EndsWith(b)));
+            var projs = Utilities.GetProjects(_DTE2.Solution.Projects);
+
+            var mainproject = projs.FirstOrDefault(a => startuprojectlist.Any(b => a.FullName.ToLower().EndsWith(b)));
          
             var project = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId);
             if (project == null) return;
@@ -54,14 +57,17 @@ namespace SLGenerator
                     var asstype = ass.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorScript"));
                     var type = ass.GetType(asstype.FullName);
                     _SLGeneratorScriptProxy = new SLGeneratorScriptProxy(Activator.CreateInstance(type));
-                    var projs = _SLGeneratorScriptProxy.IncludeProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects).ToList();
+                    //var projs = _SLGeneratorScriptProxy.IncludeProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects).ToList();
+                
+
                     if (_SLGeneratorScriptProxy.IncludeMainProject() && mainproject != null)
                     {
-                        if (!projs.Any(a => a.Id == mainproject.Id)) projs.Add(mainproject);
+                        if (!projs.Any(a => a.UniqueName == mainproject.UniqueName)) projs.Add(mainproject);
                     }
-                    foreach (var item in projs)
+                    var projlist = Utilities.GetJoinedProjs(_VisualStudioWorkspace?.CurrentSolution?.Projects, projs);
+                    foreach (var item in projlist)
                     {
-                        foreach (var doc in item.Documents)
+                        foreach (var doc in item.NProject.Documents)
                         {
                             RunOnce(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
                         }
@@ -70,6 +76,8 @@ namespace SLGenerator
                 }
             }
         }
+
+
         private void RunOnce(Document d, SyntaxNode root, SemanticModel sem)
         {
             if (_SLGeneratorScriptProxy == null || d==null || root ==null || sem == null) return;
