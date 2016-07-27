@@ -8,6 +8,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
 using System.IO;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace SLGenerator
 {
@@ -15,23 +17,17 @@ namespace SLGenerator
     {
 
         private DTE2 _DTE2;
-        private Log _Log;
-        private IVsStatusbar _IVsStatusbar;
         private VisualStudioWorkspace _VisualStudioWorkspace;
-        // private CachedCompiler _CachedCompiler;
         private SLGeneratorScriptProxy _SLGeneratorScriptProxy = null;
 
-        private object _BuildingLock = new object();
+        List<string> _DocumentsToWatch = new List<string>();
+
         public Builder(VisualStudioWorkspace worksp, DTE2 dte, IVsStatusbar stab)
         {
             _DTE2 = dte;
-            _IVsStatusbar = stab;
-            _Log = new Log(dte);
-            _VisualStudioWorkspace = worksp;
-            // _CachedCompiler = new CachedCompiler(new RoslynCompiler());
-            if (_DTE2 == null || _Log == null || _IVsStatusbar == null)
-                ErrorHandler.ThrowOnFailure(1);
 
+            _VisualStudioWorkspace = worksp;
+ 
             _VisualStudioWorkspace.WorkspaceChanged += _VisualStudioWorkspace_WorkspaceChanged;
         }
 
@@ -40,15 +36,13 @@ namespace SLGenerator
             var docId = _VisualStudioWorkspace?.CurrentSolution?.GetDocumentIdsWithFilePath(filepath).FirstOrDefault();
 
             var startuprojectlist = (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a));
+            if (startuprojectlist == null) return;
             var mainproject = _VisualStudioWorkspace?.CurrentSolution?.Projects?.FirstOrDefault(a => startuprojectlist.Any(b => a.FilePath.ToLower().EndsWith(b)));
-            //_VisualStudioWorkspace?.CurrentSolution?.document
+         
             var project = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId);
             if (project == null) return;
         
             var compilation = project.GetCompilationAsync().Result;
-
-            //Document doc = project.GetDocument(docId);
-            //SyntaxTree docSyntaxTree = doc.GetSyntaxTreeAsync().Result;
 
             using (var ms = new MemoryStream())
             {
@@ -67,37 +61,58 @@ namespace SLGenerator
                     }
                     foreach (var item in projs)
                     {
-                        var comp = item.GetCompilationAsync().Result;
-                        foreach (var d in item.Documents)
+                        foreach (var doc in item.Documents)
                         {
-                            var docSyntaxTree = d.GetSyntaxTreeAsync().Result;
-                            var semanticModel = d.GetSemanticModelAsync().Result;
-                            var root = docSyntaxTree.GetRoot();
-                            if (_SLGeneratorScriptProxy.IncludeDocument(d, root, semanticModel))
-                            {
-                                _SLGeneratorScriptProxy.Run(d, root, semanticModel);
-                            }
+                            RunOnce(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
                         }
                     }
                    
                 }
             }
         }
+        private void RunOnce(Document d, SyntaxNode root, SemanticModel sem)
+        {
+            if (_SLGeneratorScriptProxy == null || d==null || root ==null || sem == null) return;
+            if (_SLGeneratorScriptProxy.IncludeDocument(d, root, sem))
+            {
+                _DocumentsToWatch.Add(d.FilePath);
+                _SLGeneratorScriptProxy.Run(_DTE2 ,d, root, sem);
+            }
+        }
+        void DocumentChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
+        {
+            var doc = e.NewSolution.GetDocument(e.DocumentId);
+            RunOnce(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
+       
+        }
+        void SolutionChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
+        {
+            int k = 8;
+        }
+        void ProjectChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
+        {
+            int k = 8;
+        }
         private void _VisualStudioWorkspace_WorkspaceChanged(object sender, Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
+
             switch (e.Kind)
             {
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.DocumentAdded:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.DocumentChanged:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.DocumentReloaded:
-
+                    DocumentChanged(e);
                     break;
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.SolutionAdded:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.SolutionChanged:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.SolutionReloaded:
+                    SolutionChanged(e);
+                    break;
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectAdded:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectChanged:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectReloaded:
+                    ProjectChanged(e);
+                    break;
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectRemoved:
 
                     break;

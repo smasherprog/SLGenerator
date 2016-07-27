@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using EnvDTE80;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace SLGenerator
         bool IncludeMainProject();
         IEnumerable<Project> IncludeProjects(IEnumerable<Project> projects_in_solution);
         bool IncludeDocument(Document doc, SyntaxNode root, SemanticModel sem);
-        void Run(Document doc, SyntaxNode root, SemanticModel sem);
+        void Run(DTE2 dte2, Document doc, SyntaxNode root, SemanticModel sem);
     }
     public class SLGeneratorScriptProxy : ISLGeneratorScript
     {
@@ -39,9 +40,9 @@ namespace SLGenerator
         {
             return (IEnumerable<Project>)_IncludeProjects.Invoke(_object, new object[] { projects_in_solution });
         }
-        public void Run(Document doc, SyntaxNode root, SemanticModel sem)
+        public void Run(DTE2 dte2, Document doc, SyntaxNode root, SemanticModel sem)
         {
-            _Run.Invoke(_object, new object[] { doc, root, sem });
+            _Run.Invoke(_object, new object[] { dte2,  doc, root, sem });
         }
 
         public bool IncludeDocument(Document doc, SyntaxNode root, SemanticModel sem)
