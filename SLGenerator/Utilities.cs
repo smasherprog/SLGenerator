@@ -6,24 +6,20 @@ using System.Threading.Tasks;
 
 namespace SLGenerator
 {
-    public class MappedProjects
-    {
-        public Microsoft.CodeAnalysis.Project NProject { get; set; }
-        public EnvDTE.Project OProject { get; set; }
-    }
+  
     static public class Utilities
     {
-        public static List<MappedProjects> GetJoinedProjs(IEnumerable<Microsoft.CodeAnalysis.Project> projs, List<EnvDTE.Project> oprojs)
+        public static List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>> JoinProjects(IEnumerable<Microsoft.CodeAnalysis.Project> projs, List<EnvDTE.Project> oprojs)
         {
             var p = oprojs.ToList();//take a copy
-            var np = new List<MappedProjects>();
+            var np = new List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>>();
             foreach (var item in projs)
             {
                 var f = p.FirstOrDefault(a => item.FilePath.EndsWith(a.UniqueName));
                 if (f != null)
                 {
                     p.Remove(f);
-                    np.Add(new MappedProjects { NProject = item, OProject = f });
+                    np.Add(Tuple.Create( item, f));
                 }
             }
 

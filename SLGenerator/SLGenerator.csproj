@@ -52,7 +52,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Builder.cs" />
-    <Compile Include="CompilerExtensions.cs" />
+    <Compile Include="SLGeneratorMainProxy.cs" />
+    <Compile Include="ISLGeneratorMain.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SLCodeGenerator.cs" />

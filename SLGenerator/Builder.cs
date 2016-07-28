@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Linq;
-using EnvDTE100;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.LanguageServices;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Diagnostics;
 using EnvDTE80;
 
 namespace SLGenerator
@@ -19,34 +15,29 @@ namespace SLGenerator
 
         private DTE2 _DTE2;
         private VisualStudioWorkspace _VisualStudioWorkspace;
-        private SLGeneratorScriptProxy _SLGeneratorScriptProxy = null;
+        private ISLGeneratorMain _ISLGeneratorMain = null;
 
         List<string> _DocumentsToWatch = new List<string>();
 
         public Builder(VisualStudioWorkspace worksp, DTE2 dte, IVsStatusbar stab)
         {
             _DTE2 = dte;
-   
-            _VisualStudioWorkspace = worksp;
- 
-            _VisualStudioWorkspace.WorkspaceChanged += _VisualStudioWorkspace_WorkspaceChanged;
-        }
 
+            _VisualStudioWorkspace = worksp;
+
+            _VisualStudioWorkspace.WorkspaceChanged += _VisualStudioWorkspace_WorkspaceChanged;
+     
+        }
+        string get_StartupProject()
+        {
+            return (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a)).FirstOrDefault();
+        }
         public void BuildMain(string code, string filepath, System.IO.StringWriter log)
         {
             var docId = _VisualStudioWorkspace?.CurrentSolution?.GetDocumentIdsWithFilePath(filepath).FirstOrDefault();
-
-            var startuprojectlist = (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a));
-            if (startuprojectlist == null) return;
-            var projs = Utilities.GetProjects(_DTE2.Solution.Projects);
-
-            var mainproject = projs.FirstOrDefault(a => startuprojectlist.Any(b => a.FullName.ToLower().EndsWith(b)));
-         
-            var project = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId);
-            if (project == null) return;
-        
-            var compilation = project.GetCompilationAsync().Result;
-
+            if (docId == null) return;
+            var compilation = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId)?.GetCompilationAsync()?.Result;
+            if (compilation == null) return;
             using (var ms = new MemoryStream())
             {
                 var compilationResult = compilation.Emit(ms);
@@ -54,52 +45,53 @@ namespace SLGenerator
                 {
                     ms.Seek(0, SeekOrigin.Begin);
                     var ass = Assembly.Load(ms.ToArray());
-                    var asstype = ass.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorScript"));
+                    var asstype = ass.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorMain"));
                     var type = ass.GetType(asstype.FullName);
-                    _SLGeneratorScriptProxy = new SLGeneratorScriptProxy(Activator.CreateInstance(type));
-                    //var projs = _SLGeneratorScriptProxy.IncludeProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects).ToList();
-                
-
-                    if (_SLGeneratorScriptProxy.IncludeMainProject() && mainproject != null)
-                    {
-                        if (!projs.Any(a => a.UniqueName == mainproject.UniqueName)) projs.Add(mainproject);
-                    }
-                    var projlist = Utilities.GetJoinedProjs(_VisualStudioWorkspace?.CurrentSolution?.Projects, projs);
-                    foreach (var item in projlist)
-                    {
-                        foreach (var doc in item.NProject.Documents)
-                        {
-                            RunOnce(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
-                        }
-                    }
-                   
+                    _ISLGeneratorMain = (ISLGeneratorMain)new SLGeneratorMainProxy(Activator.CreateInstance(type));
+                    OnProjectsChanged();
                 }
             }
         }
-
-
-        private void RunOnce(Document d, SyntaxNode root, SemanticModel sem)
+        void OnProjectsChanged()
         {
-            if (_SLGeneratorScriptProxy == null || d==null || root ==null || sem == null) return;
-            if (_SLGeneratorScriptProxy.IncludeDocument(d, root, sem))
+           
+            var mergedprojs = Utilities.JoinProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects, Utilities.GetProjects(_DTE2?.Solution?.Projects));
+            var startupprojname = get_StartupProject();
+            if (string.IsNullOrWhiteSpace(startupprojname)) return;
+            var startupproj = mergedprojs.FirstOrDefault(a => a.Item2.FullName.ToLower().EndsWith(startupprojname));
+
+            _ISLGeneratorMain.OnProjectsChanged(mergedprojs.Where(a => a != startupproj).ToList(), startupproj);
+            _DocumentsToWatch = new List<string>();
+            foreach (var item in _ISLGeneratorMain.IncludeProjects())
+            {
+                foreach (var doc in item.Item1.Documents)
+                {
+                    OnDocumentChanged(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
+                }
+            }
+        }
+       
+        void OnDocumentChanged(Document d, SyntaxNode root, SemanticModel sem)
+        {
+            if (_ISLGeneratorMain == null || d == null || root == null || sem == null) return;
+            if (_ISLGeneratorMain.IncludeDocument(d, root, sem))
             {
                 _DocumentsToWatch.Add(d.FilePath);
-                _SLGeneratorScriptProxy.Run(_DTE2 ,d, root, sem);
+                _ISLGeneratorMain.OnDocumentChanged(d, root, sem);
             }
         }
         void DocumentChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
             var doc = e.NewSolution.GetDocument(e.DocumentId);
-            RunOnce(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
-       
+            OnDocumentChanged(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
         }
         void SolutionChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
-            int k = 8;
+            OnProjectsChanged();
         }
         void ProjectChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
-            int k = 8;
+            OnProjectsChanged();
         }
         private void _VisualStudioWorkspace_WorkspaceChanged(object sender, Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
@@ -119,10 +111,8 @@ namespace SLGenerator
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectAdded:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectChanged:
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectReloaded:
-                    ProjectChanged(e);
-                    break;
                 case Microsoft.CodeAnalysis.WorkspaceChangeKind.ProjectRemoved:
-
+                    ProjectChanged(e);
                     break;
                 default:
                     break;
