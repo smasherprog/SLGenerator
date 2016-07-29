@@ -7,6 +7,8 @@ using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
 using EnvDTE80;
+using SLGeneratorLib;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace SLGenerator
 {
@@ -26,7 +28,7 @@ namespace SLGenerator
             _VisualStudioWorkspace = worksp;
 
             _VisualStudioWorkspace.WorkspaceChanged += _VisualStudioWorkspace_WorkspaceChanged;
-     
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(MyResolveEventHandler);
         }
         string get_StartupProject()
         {
@@ -34,17 +36,24 @@ namespace SLGenerator
         }
         public void BuildMain(string code, string filepath, System.IO.StringWriter log)
         {
+            var tester = new SLGeneratorLib.Model.MergedProject();
             var docId = _VisualStudioWorkspace?.CurrentSolution?.GetDocumentIdsWithFilePath(filepath).FirstOrDefault();
             if (docId == null) return;
             var compilation = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId)?.GetCompilationAsync()?.Result;
             if (compilation == null) return;
             using (var ms = new MemoryStream())
+            using (var ss = new MemoryStream())
             {
-                var compilationResult = compilation.Emit(ms);
+                var compilation1 = CSharpCompilation.Create("MyCompilation",
+                    syntaxTrees: compilation.SyntaxTrees, references: compilation.References, options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+                var compilationResult = compilation1.Emit(ms, ss);
                 if (compilationResult.Success)
                 {
                     ms.Seek(0, SeekOrigin.Begin);
-                    var ass = Assembly.Load(ms.ToArray());
+                    ss.Seek(0, SeekOrigin.Begin);
+                    var ass = Assembly.Load(ms.ToArray(), ss.ToArray());
+                    var testtypes= ass.GetTypes();
                     var asstype = ass.DefinedTypes.FirstOrDefault(a => a.GetInterfaces().Any(b => b.Name == "ISLGeneratorMain"));
                     var type = ass.GetType(asstype.FullName);
                     _ISLGeneratorMain = (ISLGeneratorMain)new SLGeneratorMainProxy(Activator.CreateInstance(type));
@@ -52,19 +61,26 @@ namespace SLGenerator
                 }
             }
         }
+        private static Assembly MyResolveEventHandler(object sender, ResolveEventArgs args)
+        {
+            var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
+            if (loadedAssembly != null)
+                return loadedAssembly;
+            return null;
+        }
         void OnProjectsChanged()
         {
            
             var mergedprojs = Utilities.JoinProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects, Utilities.GetProjects(_DTE2?.Solution?.Projects));
             var startupprojname = get_StartupProject();
             if (string.IsNullOrWhiteSpace(startupprojname)) return;
-            var startupproj = mergedprojs.FirstOrDefault(a => a.Item2.FullName.ToLower().EndsWith(startupprojname));
+            var startupproj = mergedprojs.FirstOrDefault(a => a.EnvDTE_Project.FullName.ToLower().EndsWith(startupprojname));
 
-            _ISLGeneratorMain.OnProjectsChanged(mergedprojs.Where(a => a != startupproj).ToList(), startupproj);
+            _ISLGeneratorMain.OnProjectsChanged(mergedprojs.Where(a => a != startupproj), startupproj);
             _DocumentsToWatch = new List<string>();
             foreach (var item in _ISLGeneratorMain.IncludeProjects())
             {
-                foreach (var doc in item.Item1.Documents)
+                foreach (var doc in item.CodeAnalysis_Project.Documents)
                 {
                     OnDocumentChanged(doc, doc?.GetSyntaxTreeAsync()?.Result?.GetRoot(), doc?.GetSemanticModelAsync()?.Result);
                 }

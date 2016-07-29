@@ -4,22 +4,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SLGenerator
+namespace SLGeneratorLib
 {
   
     static public class Utilities
     {
-        public static List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>> JoinProjects(IEnumerable<Microsoft.CodeAnalysis.Project> projs, List<EnvDTE.Project> oprojs)
+        public static List<Model.MergedProject> JoinProjects(IEnumerable<Microsoft.CodeAnalysis.Project> projs, List<EnvDTE.Project> oprojs)
         {
             var p = oprojs.ToList();//take a copy
-            var np = new List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>>();
+            var np = new List<Model.MergedProject>();
             foreach (var item in projs)
             {
                 var f = p.FirstOrDefault(a => item.FilePath.EndsWith(a.UniqueName));
                 if (f != null)
                 {
                     p.Remove(f);
-                    np.Add(Tuple.Create( item, f));
+                    np.Add(new Model.MergedProject {  CodeAnalysis_Project = item,  EnvDTE_Project = f });
                 }
             }
 

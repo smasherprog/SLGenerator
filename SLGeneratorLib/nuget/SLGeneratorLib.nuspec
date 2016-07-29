@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+    <metadata>
+      <id>SLGeneratorLib</id>
+	  <title>SLGeneratorLib</title>
+      <version>0.0.5</version>
+      <authors>Scott Lee</authors>
+      <owners>Scott Lee</owners>
+      <projectUrl>https://github.com/smasherprog/SLGenerator</projectUrl>
+      <requireLicenseAcceptance>false</requireLicenseAcceptance>
+      <description>SLGeneratorLib are the core libraries needed for the SLGenerator</description>
+      <tags>C# F# VB.NET typescript</tags>
+      <releaseNotes></releaseNotes>
+      <copyright>Copyright 2016</copyright>	
+		<dependencies>
+		<dependency id="Microsoft.CodeAnalysis" version="[1.2.2]" />
+    </dependencies>
+	<frameworkAssemblies>
+		<frameworkAssembly assemblyName="envdte" />
+		<frameworkAssembly assemblyName="envdte80" />
+		<frameworkAssembly assemblyName="envdte100" />
+		<frameworkAssembly assemblyName="envdte90" />
+	</frameworkAssemblies>
+    </metadata>
+</package>

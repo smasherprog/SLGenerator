@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using EnvDTE;
 using Microsoft.CodeAnalysis;
+using SLGeneratorLib;
+using SLGeneratorLib.Model;
 
 namespace SLGenerator
 {
@@ -32,14 +34,14 @@ namespace SLGenerator
 
         }
 
-        public List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>> IncludeProjects()
+        public IEnumerable<MergedProject> IncludeProjects()
         {
-            return (List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>>)_IncludeProjects.Invoke(_object, new object[0]);
+            return (IEnumerable<MergedProject>)_IncludeProjects.Invoke(_object, new object[0]);
         }
 
-        public void OnProjectsChanged(List<Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project>> projects, Tuple<Microsoft.CodeAnalysis.Project, EnvDTE.Project> startup_project)
+        public void OnProjectsChanged(IEnumerable<MergedProject> projects, MergedProject mainproject)
         {
-            _OnProjectsChanged.Invoke(_object, new object[] { projects , startup_project });
+            _OnProjectsChanged.Invoke(_object, new object[] { projects, mainproject });
         }
 
         public void OnDocumentChanged(Microsoft.CodeAnalysis.Document doc, SyntaxNode root, SemanticModel sem)
@@ -51,6 +53,7 @@ namespace SLGenerator
         {
             return (bool)_IncludeDocument.Invoke(_object, new object[] { doc, root, sem });
         }
+
     }
 
 }
