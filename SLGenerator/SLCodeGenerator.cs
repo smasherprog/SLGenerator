@@ -1,8 +1,12 @@
-﻿using Microsoft.VisualStudio.ComponentModelHost;
+﻿using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Designer.Interfaces;
 using Microsoft.VisualStudio.LanguageServices;
+using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,6 +14,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 
 namespace SLGenerator
 {
@@ -19,29 +24,80 @@ namespace SLGenerator
     [CodeGeneratorRegistration(typeof(SLCodeGenerator), "VB SL Generator", "{164B10B9-B200-11D0-8C61-00A0C91E29D5}", GeneratesDesignTimeSource = true)]
     [CodeGeneratorRegistration(typeof(SLCodeGenerator), "J# SL Generator", "{E6FDF8B0-F3D1-11D4-8576-0002A516ECE8}", GeneratesDesignTimeSource = true)]
     [ProvideObject(typeof(SLCodeGenerator))]
-    public class SLCodeGenerator : IVsSingleFileGenerator
+    public class SLCodeGenerator : IVsSingleFileGenerator, IObjectWithSite
     {
         SLGenerator.Builder _Builder;
         public SLCodeGenerator()
         {
             Debug.WriteLine("SLCodeGenerator() Called");
-            var componentmodel = (IComponentModel)Package.GetGlobalService(typeof(SComponentModel));
-            _Builder = new SLGenerator.Builder(componentmodel.GetService<VisualStudioWorkspace>(), Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2, Package.GetGlobalService(typeof(SVsStatusbar)) as IVsStatusbar);
+        }
+        private object site = null;
+        private CodeDomProvider codeDomProvider = null;
+        private ServiceProvider serviceProvider = null;
 
+        private CodeDomProvider CodeProvider
+        {
+            get
+            {
+                if (codeDomProvider == null)
+                {
+                    var provider = (IVSMDCodeDomProvider)SiteServiceProvider.GetService(typeof(IVSMDCodeDomProvider).GUID);
+                    if (provider != null)
+                        codeDomProvider = (CodeDomProvider)provider.CodeDomProvider;
+                }
+                return codeDomProvider;
+            }
         }
 
+        private ServiceProvider SiteServiceProvider
+        {
+            get
+            {
+                if (serviceProvider == null)
+                {
+                    var oleServiceProvider = site as IOleServiceProvider;
+                    serviceProvider = new ServiceProvider(oleServiceProvider);
+                }
+                return serviceProvider;
+            }
+        }
+        public void GetSite(ref Guid riid, out IntPtr ppvSite)
+        {
+            if (site == null)
+                Marshal.ThrowExceptionForHR(VSConstants.E_NOINTERFACE);
+
+            // Query for the interface using the site object initially passed to the generator
+            IntPtr punk = Marshal.GetIUnknownForObject(site);
+            int hr = Marshal.QueryInterface(punk, ref riid, out ppvSite);
+            Marshal.Release(punk);
+            Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(hr);
+        }
+
+        public void SetSite(object pUnkSite)
+        {
+            // Save away the site object for later use
+            site = pUnkSite;
+
+            // These are initialized on demand via our private CodeProvider and SiteServiceProvider properties
+            codeDomProvider = null;
+            serviceProvider = null;
+        }
         public int DefaultExtension(out string pbstrDefaultExtension)
         {
-            pbstrDefaultExtension = ".cs";
-            return 0;//also S_OK
+            pbstrDefaultExtension = "." + CodeProvider.FileExtension;
+            return VSConstants.S_OK;
         }
-
+        
         public int Generate(string wszInputFilePath, string bstrInputFileContents, string wszDefaultNamespace, IntPtr[] rgbOutputFileContents, out uint pcbOutput, IVsGeneratorProgress pGenerateProgress)
         {
             using (var writer = new StringWriter(new StringBuilder()))
             {
+             
                 Encoding enc = Encoding.GetEncoding(writer.Encoding.WindowsCodePage);
-                _Builder.BuildMain(bstrInputFileContents, wszInputFilePath, writer);
+                var componentmodel = (IComponentModel)Package.GetGlobalService(typeof(SComponentModel));
+                _Builder?.Dispose();
+                _Builder = new SLGenerator.Builder(componentmodel.GetService<VisualStudioWorkspace>(), pGenerateProgress);
+                _Builder.BuildMain( wszInputFilePath);
 
                 //Get the preamble (byte-order mark) for our encoding
                 byte[] preamble = enc.GetPreamble();

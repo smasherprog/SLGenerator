@@ -3,7 +3,7 @@
     <metadata>
       <id>SLGeneratorLib</id>
 	  <title>SLGeneratorLib</title>
-      <version>0.0.5</version>
+      <version>0.0.6</version>
       <authors>Scott Lee</authors>
       <owners>Scott Lee</owners>
       <projectUrl>https://github.com/smasherprog/SLGenerator</projectUrl>
@@ -14,6 +14,10 @@
       <copyright>Copyright 2016</copyright>	
 		<dependencies>
 		<dependency id="Microsoft.CodeAnalysis" version="[1.2.2]" />
+		<dependency id="Microsoft.VisualStudio.Shell.14.0" version="[14.3.25407]" />
+		<dependency id="Roslyn.Microsoft.VisualStudio.ComponentModelHost" version="[0.0.2]" />
+		<dependency id="Microsoft.VisualStudio.LanguageServices" version="[1.2.2]" />
+		
     </dependencies>
 	<frameworkAssemblies>
 		<frameworkAssembly assemblyName="envdte" />

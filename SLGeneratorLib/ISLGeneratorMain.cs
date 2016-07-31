@@ -1,13 +1,13 @@
-﻿using System.Collections.Generic;
-using Microsoft.CodeAnalysis;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace SLGeneratorLib
 {
-    public interface ISLGeneratorMain
+    public interface ISLGeneratorMain : IDisposable
     {
-        IEnumerable<Model.MergedProject> IncludeProjects();
-        void OnProjectsChanged(IEnumerable<Model.MergedProject> projects, Model.MergedProject mainproject);
-        void OnDocumentChanged(Document doc, SyntaxNode root, SemanticModel sem);
-        bool IncludeDocument(Document doc, SyntaxNode root, SemanticModel sem);
+        void Init();
     }
 }

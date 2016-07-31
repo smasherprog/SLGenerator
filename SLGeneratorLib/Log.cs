@@ -2,20 +2,22 @@
 using System.Linq;
 using EnvDTE;
 
-namespace SLGenerator
+namespace SLGeneratorLib
 {
     public class Log
     {
-        private static Log instance;
+        private static readonly Lazy<Log> lazy = new Lazy<Log>(() => new Log());
 
-        private readonly EnvDTE80.DTE2 dte;
+        public static Log instance { get { return lazy.Value; } }
+
+        private readonly EnvDTE80.DTE2 _DTE2;
         private OutputWindowPane outputWindowPane;
 
-        internal Log(EnvDTE80.DTE2 dte)
+        Log()
         {
-            this.dte = dte;
-            instance = this;
+            _DTE2 = Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
         }
+
 
         public static void Debug(string message, params object[] parameters)
         {
@@ -37,6 +39,7 @@ namespace SLGenerator
         public static void Error(string message, params object[] parameters)
         {
             instance?.Write("ERROR", message, parameters);
+            instance?.OutputWindow?.Activate();
         }
 
         private void Write(string type, string message, object[] parameters)
@@ -51,6 +54,7 @@ namespace SLGenerator
                     OutputWindow.OutputString(message + Environment.NewLine);
             }
             catch { }
+    
         }
 
         private OutputWindowPane OutputWindow
@@ -58,20 +62,18 @@ namespace SLGenerator
             get
             {
                 if (outputWindowPane != null) return outputWindowPane;
+                var panes = _DTE2.ToolWindows.OutputWindow.OutputWindowPanes;
 
-                var window = dte.Windows.Item(EnvDTE.Constants.vsWindowKindOutput);
-                var outputWindow = (OutputWindow)window.Object;
-
-                for (uint i = 1; i <= outputWindow.OutputWindowPanes.Count; i++)
+                try
                 {
-                    if (outputWindow.OutputWindowPanes.Item(i).Name.Equals("SLBuilder", StringComparison.CurrentCultureIgnoreCase))
-                    {
-                        outputWindowPane = outputWindow.OutputWindowPanes.Item(i);
-                        break;
-                    }
+                    outputWindowPane = panes.Item("SLGenerator");
                 }
-
-                return outputWindowPane ?? (outputWindowPane = outputWindow.OutputWindowPanes.Add("SLBuilder"));
+                catch (ArgumentException)
+                {
+                    // Create a new pane and write to it.
+                    outputWindowPane = panes.Add("SLGenerator");
+                }
+                return outputWindowPane;
             }
         }
     }
