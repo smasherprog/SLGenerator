@@ -188,6 +188,7 @@
     <Compile Include="Model\MergedProject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Service\SLDocumentWatcher.cs" />
+    <Compile Include="Service\tsGenerator.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -15,7 +15,7 @@ using System.IO;
 
 namespace SLGeneratorLib.Service
 {
-    public class SLDocumentWatcher : Interfaces.ISLDocumentWatcher
+    public abstract class SLDocumentWatcher : Interfaces.ISLDocumentWatcher
     {
         protected EnvDTE80.DTE2 _DTE2 = null;
 
@@ -77,62 +77,9 @@ namespace SLGeneratorLib.Service
             return _AllProjects;
         }
 
-        public async virtual void OnDocumentChanged(MergedProject current_project, Document d)
-        {
-            var sem = await d?.GetSemanticModelAsync();
-            var tree = await d?.GetSyntaxTreeAsync();
-            var root = await tree.GetRootAsync();
-            var nodes = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(a => a.Identifier.ValueText.EndsWith("ViewModel"));
-            if (nodes.Any() && _StartupProject != null)
-            {
+        public abstract void OnDocumentChanged(MergedProject current_project, Document d);
 
-                _DocumentsToWatch.Add(d.FilePath);
-
-                var outfile = System.IO.Path.GetDirectoryName(_StartupProject.CodeAnalysis_Project.FilePath) + "\\" + System.IO.Path.GetFileNameWithoutExtension(d.Name) + ".ts";
-
-                using (var fs = new System.IO.FileStream(outfile, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write))
-                using (var streamwriter = new System.IO.StreamWriter(fs))
-                {
-                    foreach (var item in nodes)
-                    {
-                        var ptest1 = sem.GetDeclaredSymbol(item);
-                        
-                        streamwriter.WriteLine($"export class {ptest1.Name} " + "{");
-                        foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
-                        {
-                            var ptest = sem.GetDeclaredSymbol(p);
-                           
-                            Debug.WriteLine(ptest.Type);
-                            streamwriter.WriteLine($"public {p.Identifier} ");
-                        }
-                        streamwriter.WriteLine("}");
-                    }
-                }
-                var pitem = FindProjectItem(outfile);
-                if (pitem == null) pitem = _StartupProject.EnvDTE_Project.ProjectItems.AddFromFile(outfile);
-                if (pitem != null) Debug.WriteLine(pitem.Name);
-            }
-        }
-        private EnvDTE.ProjectItem FindProjectItem(string path)
-        {
-            foreach (EnvDTE.ProjectItem item in _StartupProject.EnvDTE_Project.ProjectItems)
-            {
-                try
-                {
-                    if (item.Document.FullName.Equals(path, StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        return item;
-                    }
-                }
-                catch
-                {
-                    // Can't read properties from project item sometimes when deleting miltiple files
-                }
-            }
-
-            return null;
-        }
-
+    
         void DocumentChanged(Microsoft.CodeAnalysis.WorkspaceChangeEventArgs e)
         {
             var doc = e.NewSolution.GetDocument(e.DocumentId);
@@ -180,8 +127,6 @@ namespace SLGeneratorLib.Service
 
         public void Dispose()
         {
-            Debug.WriteLine("Dispose SLDocumentWatcher");
-            // AppDomain.CurrentDomain.AssemblyResolve -= MyResolveEventHandler;
             _VisualStudioWorkspace.WorkspaceChanged -= _VisualStudioWorkspace_WorkspaceChanged;
         }
 

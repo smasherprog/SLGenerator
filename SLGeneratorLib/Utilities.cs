@@ -76,5 +76,25 @@ namespace SLGeneratorLib
 
             return list;
         }
+        public static EnvDTE.ProjectItem FindProjectItem(this EnvDTE.Project pro, string path)
+        {
+            foreach (EnvDTE.ProjectItem item in pro.ProjectItems)
+            {
+                try
+                {
+                    if (item.Document.FullName.Equals(path, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        return item;
+                    }
+                }
+                catch
+                {
+                    // Can't read properties from project item sometimes when deleting miltiple files
+                }
+            }
+
+            return null;
+        }
+
     }
 }
