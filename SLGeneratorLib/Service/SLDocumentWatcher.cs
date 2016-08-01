@@ -38,10 +38,6 @@ namespace SLGeneratorLib.Service
 
         }
 
-        string get_StartupProject()
-        {
-            return (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a)).FirstOrDefault();
-        }
         public virtual void Init()
         {
             ProjectsChanged();
@@ -49,7 +45,7 @@ namespace SLGeneratorLib.Service
         void ProjectsChanged()
         {
             _AllProjects = Utilities.JoinProjects(_VisualStudioWorkspace?.CurrentSolution?.Projects, Utilities.GetProjects(_DTE2?.Solution?.Projects));
-            var startupprojname = get_StartupProject();
+            var startupprojname = (_DTE2.Solution?.SolutionBuild?.StartupProjects as object[])?.Select(a => a?.ToString()?.ToLower()).Where(a => !string.IsNullOrWhiteSpace(a)).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(startupprojname)) return;
             _StartupProject = _AllProjects.FirstOrDefault(a => a.EnvDTE_Project.FullName.ToLower().EndsWith(startupprojname));
             OnProjectsChanged();
@@ -80,22 +76,10 @@ namespace SLGeneratorLib.Service
         {
             return _AllProjects;
         }
-        public class UsingCollector : CSharpSyntaxWalker
-        {
-            StreamWriter _StreamWriter;
-            public UsingCollector(StreamWriter s)
-            {
-                _StreamWriter = s;
-            }
-            public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node)
-            {
-                _StreamWriter.WriteLine($"{node.Identifier}");
-                //base.VisitPropertyDeclaration(node);
-            }
-      
-        }
+
         public async virtual void OnDocumentChanged(MergedProject current_project, Document d)
         {
+            var sem = await d?.GetSemanticModelAsync();
             var tree = await d?.GetSyntaxTreeAsync();
             var root = await tree.GetRootAsync();
             var nodes = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(a => a.Identifier.ValueText.EndsWith("ViewModel"));
@@ -111,11 +95,16 @@ namespace SLGeneratorLib.Service
                 {
                     foreach (var item in nodes)
                     {
-                       
-                        streamwriter.WriteLine($"export class {item.Identifier.ValueText} " + "{");
-                        var por = new UsingCollector(streamwriter);
-                        por.Visit(item);
-                      
+                        var ptest1 = sem.GetDeclaredSymbol(item);
+                        
+                        streamwriter.WriteLine($"export class {ptest1.Name} " + "{");
+                        foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
+                        {
+                            var ptest = sem.GetDeclaredSymbol(p);
+                           
+                            Debug.WriteLine(ptest.Type);
+                            streamwriter.WriteLine($"public {p.Identifier} ");
+                        }
                         streamwriter.WriteLine("}");
                     }
                 }

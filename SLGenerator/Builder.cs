@@ -31,7 +31,7 @@ namespace SLGenerator
             if (docId == null) return;
             var proj = _VisualStudioWorkspace?.CurrentSolution?.GetProject(docId.ProjectId);
             var compilation = proj?.GetCompilationAsync()?.Result;
-
+           
             if (compilation == null) return;
             using (var ms = new MemoryStream())
             using (var ss = new MemoryStream())
