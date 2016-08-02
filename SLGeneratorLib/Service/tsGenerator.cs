@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace SLGeneratorLib.Service
 {
-    public class tsGenerator: SLDocumentWatcher
+    public class tsGenerator : SLDocumentWatcher
     {
         public tsGenerator()
         {
@@ -42,10 +42,9 @@ namespace SLGeneratorLib.Service
                         {
                             var ptest = sem.GetDeclaredSymbol(p);
 
-                            Debug.WriteLine(ptest.Type);
-                            if(p.Modifiers.Any(a=> a.ValueText == "public"))
+                            if (p.Modifiers.Any(a => a.ValueText == "public"))
                             {
-                                streamwriter.WriteLine($"public {p.Identifier} ");
+                                streamwriter.WriteLine($"public {p.Identifier.ValueText}: {ToTypeScriptType(ptest.Type)}");
 
                             }
                         }
@@ -57,5 +56,47 @@ namespace SLGeneratorLib.Service
                 if (pitem != null) Debug.WriteLine(pitem.Name);
             }
         }
+        private string ToTypeScriptType(ITypeSymbol t)
+        {
+        
+            switch (t.SpecialType)
+            {
+                case SpecialType.System_Array:
+                case SpecialType.System_Collections_Generic_ICollection_T:
+                case SpecialType.System_Collections_Generic_IEnumerable_T:
+                case SpecialType.System_Collections_Generic_IEnumerator_T:
+                case SpecialType.System_Collections_Generic_IList_T:
+                case SpecialType.System_Collections_Generic_IReadOnlyCollection_T:
+                case SpecialType.System_Collections_Generic_IReadOnlyList_T:
+                case SpecialType.System_Collections_IEnumerable:
+                    return "Array<any> = new Array<any>();";
+                case SpecialType.System_Boolean:
+                    return "boolean = false;";
+                case SpecialType.System_String:
+                case SpecialType.System_Char:
+                    return "string = '';";
+                case SpecialType.System_Byte:
+                case SpecialType.System_Decimal:
+                case SpecialType.System_Double:
+                case SpecialType.System_Int16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_Int64:
+                case SpecialType.System_IntPtr:
+                case SpecialType.System_SByte:
+                case SpecialType.System_Single:
+                case SpecialType.System_UInt16:
+                case SpecialType.System_UInt32:
+                case SpecialType.System_UInt64:
+                case SpecialType.System_UIntPtr:
+                    return "number = 0;";
+                case SpecialType.System_DateTime:
+                    return "date = new Date();";
+                case SpecialType.System_Void:
+                    return "void = void;";
+                default:
+                    return "any;";
+            }
+        }
+
     }
 }

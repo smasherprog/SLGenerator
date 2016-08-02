@@ -4,25 +4,28 @@ using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.CodeAnalysis;
 using System.IO;
 using System.Reflection;
-using SLGeneratorLib;
 using System.Diagnostics;
 using Microsoft.VisualStudio.Shell.Interop;
+using SLGeneratorLib;
 
 namespace SLGenerator
 {
     public class Builder : IDisposable
     {
         private VisualStudioWorkspace _VisualStudioWorkspace = null;
-        private ISLGeneratorMain _ISLGeneratorMain = null;
+        private object _ISLGeneratorMain = null;
+        private MethodInfo _ISLGeneratorMain_Init = null;
+        private MethodInfo _ISLGeneratorMain_Dispose = null;
 
         private IVsGeneratorProgress _IVsGeneratorProgress;
         private string _FailedDllLoadMessage = "";
-
+    
         public Builder(VisualStudioWorkspace worksp, IVsGeneratorProgress prop)
         {
             _VisualStudioWorkspace = worksp;
             AppDomain.CurrentDomain.AssemblyResolve += MyResolveEventHandler;
             _IVsGeneratorProgress = prop;
+            Log.Info("Starting up SLGenerator");
         }
 
         public void BuildMain(string filepath)
@@ -51,10 +54,16 @@ namespace SLGenerator
                         {
                             var type = ass.GetType(asstype.FullName);
 
-                            _ISLGeneratorMain?.Dispose();
+                            _ISLGeneratorMain_Dispose?.Invoke(_ISLGeneratorMain, new object[0]);
                             _ISLGeneratorMain = null;
-                            _ISLGeneratorMain = (ISLGeneratorMain)Activator.CreateInstance(type);
-                            _ISLGeneratorMain?.Init();
+                            _ISLGeneratorMain_Init = null;
+                            _ISLGeneratorMain_Dispose = null;
+
+                            _ISLGeneratorMain =Activator.CreateInstance(type);
+                            _ISLGeneratorMain_Init = type.GetMethod("Init");
+                            _ISLGeneratorMain_Dispose = type.GetMethod("Dispose");
+
+                            _ISLGeneratorMain_Init?.Invoke(_ISLGeneratorMain, new object[0]);
                         } else
                         {
                             Log.Warn("ISLGeneratorMain not found in project.");
@@ -99,13 +108,13 @@ namespace SLGenerator
                             if (l > r)
                             {
                                 _FailedDllLoadMessage = $"SLGenerator is using a newer version of the Nuget Package SLGeneratorLib. Please update your Nuget Package to {ovsplits[1]}";
-                                SLGeneratorLib.Log.Error(_FailedDllLoadMessage);
+                                Log.Error(_FailedDllLoadMessage);
                                 return null;
                             }
                             else if (l < r)
                             {
                                 _FailedDllLoadMessage = $"SLGenerator is using an older version of the Nuget Package SLGeneratorLib. Please update your SLGenerator Extension";
-                                SLGeneratorLib.Log.Error(_FailedDllLoadMessage);
+                                Log.Error(_FailedDllLoadMessage);
                                 return null;
                             }
                         }
@@ -119,8 +128,10 @@ namespace SLGenerator
 
         public void Dispose()
         {
-            _ISLGeneratorMain?.Dispose();
+            _ISLGeneratorMain_Dispose?.Invoke(_ISLGeneratorMain, new object[0]);
             _ISLGeneratorMain = null;
+            _ISLGeneratorMain_Init = null;
+            _ISLGeneratorMain_Dispose = null;
             AppDomain.CurrentDomain.AssemblyResolve -= MyResolveEventHandler;
         }
     }
