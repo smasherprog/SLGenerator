@@ -23,6 +23,8 @@ namespace SLGeneratorLib.Service
             var tree = await d?.GetSyntaxTreeAsync();
             var root = await tree.GetRootAsync();
             var nodes = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(a => a.Identifier.ValueText.EndsWith("ViewModel"));
+
+
             if (nodes.Any() && _StartupProject != null)
             {
 
@@ -36,15 +38,18 @@ namespace SLGeneratorLib.Service
                     foreach (var item in nodes)
                     {
                         var ptest1 = sem.GetDeclaredSymbol(item);
+                        var genericnodes = item.DescendantNodes().OfType<GenericNameSyntax>());
 
                         streamwriter.WriteLine($"export class {ptest1.Name} " + "{");
                         foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
                         {
+
+
                             var ptest = sem.GetDeclaredSymbol(p);
 
                             if (p.Modifiers.Any(a => a.ValueText == "public"))
                             {
-                                streamwriter.WriteLine($"public {p.Identifier.ValueText}: {ToTypeScriptType(ptest.Type)}");
+                                streamwriter.WriteLine($"public {p.Identifier.ValueText}: {ToTypeScriptType(ptest)}");
 
                             }
                         }
@@ -56,20 +61,13 @@ namespace SLGeneratorLib.Service
                 if (pitem != null) Debug.WriteLine(pitem.Name);
             }
         }
-        private string ToTypeScriptType(ITypeSymbol t)
+        private string ToTypeScriptType(IPropertySymbol t)
         {
-        
-            switch (t.SpecialType)
+            var inamed = t as INamedTypeSymbol;
+
+
+            switch (t.Type.SpecialType)
             {
-                case SpecialType.System_Array:
-                case SpecialType.System_Collections_Generic_ICollection_T:
-                case SpecialType.System_Collections_Generic_IEnumerable_T:
-                case SpecialType.System_Collections_Generic_IEnumerator_T:
-                case SpecialType.System_Collections_Generic_IList_T:
-                case SpecialType.System_Collections_Generic_IReadOnlyCollection_T:
-                case SpecialType.System_Collections_Generic_IReadOnlyList_T:
-                case SpecialType.System_Collections_IEnumerable:
-                    return "Array<any> = new Array<any>();";
                 case SpecialType.System_Boolean:
                     return "boolean = false;";
                 case SpecialType.System_String:
@@ -93,9 +91,12 @@ namespace SLGeneratorLib.Service
                     return "date = new Date();";
                 case SpecialType.System_Void:
                     return "void = void;";
-                default:
-                    return "any;";
             }
+            if (t.Type.AllInterfaces.Any(a => a.Name == "IEnumerable"))
+            {
+                return "Array<any> = new Array<any>();";
+            }
+            return "any;";
         }
 
     }

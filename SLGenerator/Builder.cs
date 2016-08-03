@@ -40,6 +40,7 @@ namespace SLGenerator
             using (var ss = new MemoryStream())
             {
                 var compilationResult = compilation.Emit(ms, ss);
+                
                 if (compilationResult.Success)
                 {
                     try
