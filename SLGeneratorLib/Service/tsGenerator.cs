@@ -41,25 +41,32 @@ namespace SLGeneratorLib.Service
                         streamwriter.WriteLine($"export class {item.Identifier.ValueText} " + "{");
                         foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
                         {
-                      
+
 
                             if (p.Modifiers.Any(a => a.ValueText == "public"))
                             {
+                            
                                 var generictype = p.Type as GenericNameSyntax;
                                 if (generictype != null)
                                 {
                                     var test = generictype.TypeArgumentList?.Arguments.FirstOrDefault();
-                                    streamwriter.WriteLine($"public {p.Identifier.ValueText}: {test}[];");
+                                    var type = sem.GetTypeInfo(test);
+                                    var arrtype = $"Array<{GettsType(type)}>";
+                                    streamwriter.WriteLine($"public {p.Identifier.ValueText}: {arrtype} = new {arrtype}();");
                                 }
                                 else
                                 {
                                     var posgeneric1 = p.Type as ArrayTypeSyntax;
                                     if (posgeneric1 != null)
                                     {
-                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {posgeneric1};");
-                                    } else
+                                        var type = sem.GetTypeInfo(posgeneric1.ElementType);
+                                        var arrtype = $"Array<{GettsType(type)}>";
+                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {arrtype} = new {arrtype}();");
+                                    }
+                                    else
                                     {
-                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {p.Type.ToString()};");
+                                        var type = sem.GetTypeInfo(p.Type);
+                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {GettsType_w_Initializer(type)};");
                                     }
                                 }
                             }
@@ -71,10 +78,75 @@ namespace SLGeneratorLib.Service
                 if (pitem == null) pitem = _StartupProject.EnvDTE_Project.ProjectItems.AddFromFile(outfile);
                 if (pitem != null)
                 {
-                    pitem.Properties.Item(1).
+                    //if (!pitem.IsOpen)
+                    //{
+                    //    pitem.Open();
+                    //}
+                    //pitem.Save();
                 }
             }
         }
+        string GettsType(TypeInfo cstype)
+        {
+         
+            switch (cstype.Type.SpecialType)
+            {
+                case SpecialType.System_Boolean:
+                    return "boolean;";
+                case SpecialType.System_String:
+                case SpecialType.System_Char:
+                    return "string";
+                case SpecialType.System_Byte:
+                case SpecialType.System_Decimal:
+                case SpecialType.System_Double:
+                case SpecialType.System_Int16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_Int64:
+                case SpecialType.System_IntPtr:
+                case SpecialType.System_SByte:
+                case SpecialType.System_Single:
+                case SpecialType.System_UInt16:
+                case SpecialType.System_UInt32:
+                case SpecialType.System_UInt64:
+                case SpecialType.System_UIntPtr:
+                    return "number";
+                case SpecialType.System_DateTime:
+                    return "date";
+                case SpecialType.System_Void:
+                    return "void";
+            }
+            return "any";
+        }
+        string GettsType_w_Initializer(TypeInfo cstype)
+        {
 
+            switch (cstype.Type.SpecialType)
+            {
+                case SpecialType.System_Boolean:
+                    return "boolean = false";
+                case SpecialType.System_String:
+                case SpecialType.System_Char:
+                    return "string = ''";
+                case SpecialType.System_Byte:
+                case SpecialType.System_Decimal:
+                case SpecialType.System_Double:
+                case SpecialType.System_Int16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_Int64:
+                case SpecialType.System_IntPtr:
+                case SpecialType.System_SByte:
+                case SpecialType.System_Single:
+                case SpecialType.System_UInt16:
+                case SpecialType.System_UInt32:
+                case SpecialType.System_UInt64:
+                case SpecialType.System_UIntPtr:
+                    return "number = 0";
+                case SpecialType.System_DateTime:
+                    return "date = new Date()";
+                case SpecialType.System_Void:
+                    return "void = void";
+            }
+            return "any";
+        }
     }
 }
