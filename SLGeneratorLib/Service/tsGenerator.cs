@@ -35,22 +35,33 @@ namespace SLGeneratorLib.Service
                 using (var fs = new System.IO.FileStream(outfile, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write))
                 using (var streamwriter = new System.IO.StreamWriter(fs))
                 {
+                    fs.SetLength(0);
                     foreach (var item in nodes)
                     {
-                        var ptest1 = sem.GetDeclaredSymbol(item);
-                        var genericnodes = item.DescendantNodes().OfType<GenericNameSyntax>());
-
-                        streamwriter.WriteLine($"export class {ptest1.Name} " + "{");
+                        streamwriter.WriteLine($"export class {item.Identifier.ValueText} " + "{");
                         foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
                         {
-
-
-                            var ptest = sem.GetDeclaredSymbol(p);
+                      
 
                             if (p.Modifiers.Any(a => a.ValueText == "public"))
                             {
-                                streamwriter.WriteLine($"public {p.Identifier.ValueText}: {ToTypeScriptType(ptest)}");
-
+                                var generictype = p.Type as GenericNameSyntax;
+                                if (generictype != null)
+                                {
+                                    var test = generictype.TypeArgumentList?.Arguments.FirstOrDefault();
+                                    streamwriter.WriteLine($"public {p.Identifier.ValueText}: {test}[];");
+                                }
+                                else
+                                {
+                                    var posgeneric1 = p.Type as ArrayTypeSyntax;
+                                    if (posgeneric1 != null)
+                                    {
+                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {posgeneric1};");
+                                    } else
+                                    {
+                                        streamwriter.WriteLine($"public {p.Identifier.ValueText}: {p.Type.ToString()};");
+                                    }
+                                }
                             }
                         }
                         streamwriter.WriteLine("}");
@@ -58,45 +69,11 @@ namespace SLGeneratorLib.Service
                 }
                 var pitem = _StartupProject.EnvDTE_Project.FindProjectItem(outfile);
                 if (pitem == null) pitem = _StartupProject.EnvDTE_Project.ProjectItems.AddFromFile(outfile);
-                if (pitem != null) Debug.WriteLine(pitem.Name);
+                if (pitem != null)
+                {
+                    pitem.Properties.Item(1).
+                }
             }
-        }
-        private string ToTypeScriptType(IPropertySymbol t)
-        {
-            var inamed = t as INamedTypeSymbol;
-
-
-            switch (t.Type.SpecialType)
-            {
-                case SpecialType.System_Boolean:
-                    return "boolean = false;";
-                case SpecialType.System_String:
-                case SpecialType.System_Char:
-                    return "string = '';";
-                case SpecialType.System_Byte:
-                case SpecialType.System_Decimal:
-                case SpecialType.System_Double:
-                case SpecialType.System_Int16:
-                case SpecialType.System_Int32:
-                case SpecialType.System_Int64:
-                case SpecialType.System_IntPtr:
-                case SpecialType.System_SByte:
-                case SpecialType.System_Single:
-                case SpecialType.System_UInt16:
-                case SpecialType.System_UInt32:
-                case SpecialType.System_UInt64:
-                case SpecialType.System_UIntPtr:
-                    return "number = 0;";
-                case SpecialType.System_DateTime:
-                    return "date = new Date();";
-                case SpecialType.System_Void:
-                    return "void = void;";
-            }
-            if (t.Type.AllInterfaces.Any(a => a.Name == "IEnumerable"))
-            {
-                return "Array<any> = new Array<any>();";
-            }
-            return "any;";
         }
 
     }

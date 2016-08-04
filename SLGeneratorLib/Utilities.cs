@@ -15,7 +15,8 @@ namespace SLGeneratorLib
             var np = new List<Model.MergedProject>();
             foreach (var item in projs)
             {
-                var f = p.FirstOrDefault(a => item.FilePath.EndsWith(a.UniqueName));
+             
+                var f = p.FirstOrDefault(a => !string.IsNullOrWhiteSpace(item.FilePath) && item.FilePath.EndsWith(a.UniqueName));
                 if (f != null)
                 {
                     p.Remove(f);
