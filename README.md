@@ -26,4 +26,6 @@ Sl Generator - A Visual studio plugin to dynamically load .net code and execute 
 <p>All of the functionality for this is in the tsgenerationexample.cs file you added in the class library project.</p>
 
 <h1>Experiment with this power!</h1>
-<p>Goto the Class Library file that you added earlier tsgenerationexample.cs   Goto the line that looks like this:<br/>      streamwriter.WriteLine($"public {p.Identifier.ValueText}: {GettsType_w_Initializer(type)};");<br/> Now, change the string with the word <b>public</b> to <b>CHANGED</b>. The line should now look like this <br/>streamwriter.WriteLine($"CHANGED {p.Identifier.ValueText}: {GettsType_w_Initializer(type)};");<br/>If you open the generated typescript files you will notice that public has changed as well! The changes are instant from writing the c# code to the updated typescript file.</p>
+<p>Goto the Class Library file that you added earlier tsgenerationexample.cs   Goto the line (around 96) that looks like this:</p>    <h4>streamwriter.WriteLine($"public {p.Identifier.ValueText}: {GettsType_w_Initializer(type)};");</h4>  
+<p>Now, change the string with the word <b>public</b> to <b>CHANGED</b>. The line should now look like this</p>   <h4>streamwriter.WriteLine($"CHANGED {p.Identifier.ValueText}: {GettsType_w_Initializer(type)};");</h4>  
+<p>If you open the generated typescript files you will notice that public has changed as well! The changes are instant from writing the c# code to the updated typescript file.</p>
