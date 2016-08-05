@@ -3,12 +3,12 @@
     <metadata>
       <id>SLGeneratorLib</id>
 	  <title>SLGeneratorLib</title>
-      <version>0.0.6</version>
+      <version>0.0.7</version>
       <authors>Scott Lee</authors>
       <owners>Scott Lee</owners>
       <projectUrl>https://github.com/smasherprog/SLGenerator</projectUrl>
       <requireLicenseAcceptance>false</requireLicenseAcceptance>
-      <description>SLGeneratorLib are the core libraries needed for the SLGenerator</description>
+      <description>SLGeneratorLib contains core interfaces and models to be used with the SLGenerator extension. This alows for code to be dynamically compiled and ran inside of an extension.</description>
       <tags>C# F# VB.NET typescript</tags>
       <releaseNotes></releaseNotes>
       <copyright>Copyright 2016</copyright>	

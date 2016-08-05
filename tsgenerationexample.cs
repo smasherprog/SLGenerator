@@ -3,31 +3,58 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
 using SLGeneratorLib.Model;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis;
+using SLGeneratorLib;
 using System.Diagnostics;
 
-namespace SLGeneratorLib.Service
+namespace ClassLibrary2
 {
-    public class tsGenerator : SLDocumentWatcher
+    public class SLGeneratorMain : ISLGeneratorMain
+    {
+        tsGenerator _tsGenerator;
+        public SLGeneratorMain()
+        {
+            Debug.WriteLine("SLGeneratorMain()");
+        }
+        public void Init()
+        {
+            Debug.WriteLine("Init SLGeneratorMain");
+            _tsGenerator = new tsGenerator();
+            _tsGenerator.Init();
+
+        }
+
+        public void Dispose()
+        {
+            Debug.WriteLine("Disposing SLGeneratorMain");
+            _tsGenerator?.Dispose();
+        }
+    }
+
+    public class tsGenerator : SLGeneratorLib.Service.SLDocumentWatcher
     {
         public tsGenerator()
         {
 
         }
-        public override async void OnDocumentChanged(MergedProject current_project, Document d)
+
+        public override IEnumerable<MergedProject> IncludeProjects()
         {
-            var sem = await d?.GetSemanticModelAsync();
+            return base.IncludeProjects().Where(a => a.CodeAnalysis_Project.Name != "ClassLibrary2");
+        }
+
+        public override async void OnDocumentChanged(MergedProject current_project, Microsoft.CodeAnalysis.Document d)
+        {
+
             var tree = await d?.GetSyntaxTreeAsync();
             var root = await tree.GetRootAsync();
-            var nodes = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(a => a.Identifier.ValueText.EndsWith("ViewModel"));
+            var nodes = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>().Where(a => a.Identifier.ValueText.EndsWith("ViewModel"));
 
 
             if (nodes.Any() && _StartupProject != null)
             {
-
+                var sem = await d?.GetSemanticModelAsync();
                 _DocumentsToWatch.Add(d.FilePath);
 
                 var outfile = System.IO.Path.GetDirectoryName(_StartupProject.CodeAnalysis_Project.FilePath) + "\\" + System.IO.Path.GetFileNameWithoutExtension(d.Name) + ".ts";
@@ -39,14 +66,14 @@ namespace SLGeneratorLib.Service
                     foreach (var item in nodes)
                     {
                         streamwriter.WriteLine($"export class {item.Identifier.ValueText} " + "{");
-                        foreach (PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(SyntaxKind.PropertyDeclaration)))
+                        foreach (Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax p in item.Members.Where(x => x.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.PropertyDeclaration)))
                         {
 
 
                             if (p.Modifiers.Any(a => a.ValueText == "public"))
                             {
-                            
-                                var generictype = p.Type as GenericNameSyntax;
+
+                                var generictype = p.Type as Microsoft.CodeAnalysis.CSharp.Syntax.GenericNameSyntax;
                                 if (generictype != null)
                                 {
                                     var test = generictype.TypeArgumentList?.Arguments.FirstOrDefault();
@@ -56,7 +83,7 @@ namespace SLGeneratorLib.Service
                                 }
                                 else
                                 {
-                                    var posgeneric1 = p.Type as ArrayTypeSyntax;
+                                    var posgeneric1 = p.Type as Microsoft.CodeAnalysis.CSharp.Syntax.ArrayTypeSyntax;
                                     if (posgeneric1 != null)
                                     {
                                         var type = sem.GetTypeInfo(posgeneric1.ElementType);
@@ -76,19 +103,11 @@ namespace SLGeneratorLib.Service
                 }
                 var pitem = _StartupProject.EnvDTE_Project.FindProjectItem(outfile);
                 if (pitem == null) pitem = _StartupProject.EnvDTE_Project.ProjectItems.AddFromFile(outfile);
-                if (pitem != null)
-                {
-                    //if (!pitem.IsOpen)
-                    //{
-                    //    pitem.Open();
-                    //}
-                    //pitem.Save();
-                }
+
             }
         }
         string GettsType(TypeInfo cstype)
         {
-         
             switch (cstype.Type.SpecialType)
             {
                 case SpecialType.System_Boolean:
@@ -149,4 +168,5 @@ namespace SLGeneratorLib.Service
             return "any";
         }
     }
+
 }
