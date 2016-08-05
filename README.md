@@ -18,7 +18,7 @@ Sl Generator - A Visual studio plugin to dynamically load .net code and execute 
 <img style="width:50%;float:left;" src="https://raw.githubusercontent.com/smasherprog/SLGenerator/master/pic4.png" target="_blank"/>
 <p>Right click the newly created project and goto Manage Nuget Packages. Goto Browse and search for SLGeneratorLib. Install the package for the class <b>library only! This nuget package has very specific version dependencies -- do not attempt to update the referenced packages!</b> A seperate project is created to make this easier.</p>
 <p>We are almost there . . . </p>
-<p>Add the tsgenerationexample.cs file to the class library project. Right click the newly added file and goto properties. Add SLCodeGeneratorin the Custom Tool textbox and save.</p>
+<p>Add the https://raw.githubusercontent.com/smasherprog/SLGenerator/master/tsgenerationexample.cs file to the class library project. Right click the newly added file and goto properties. Add SLCodeGenerator in the Custom Tool textbox and save.</p> 
 <img style="width:50%;float:left;" src="https://raw.githubusercontent.com/smasherprog/SLGenerator/master/pic5.PNG" target="_blank"/>
 <p>After you save all, Visual studio should notify you that it wants to setup your project for typescript. Press yes. You should notice two files in your project</p>
 <img style="width:50%;float:left;" src="https://raw.githubusercontent.com/smasherprog/SLGenerator/master/pic6.PNG" target="_blank"/>
